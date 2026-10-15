@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Language Bridge — intent-first EN → ES</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #e6edf3; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+         min-height: 100vh; display: flex; justify-content: center; padding: 24px 16px; }
+  .wrap { width: 100%; max-width: 640px; }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  h1 span { color: #f0883e; }
+  .sub { color: #8b949e; font-size: .9rem; margin-bottom: 20px; }
+  textarea { width: 100%; min-height: 90px; background: #161b22; border: 1px solid #30363d;
+             border-radius: 10px; color: #e6edf3; font-size: 1.05rem; padding: 12px; resize: vertical; }
+  textarea:focus { outline: none; border-color: #f0883e; }
+  .row { display: flex; gap: 10px; margin: 14px 0; align-items: center; flex-wrap: wrap; }
+  .seg { display: flex; background: #161b22; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+  .seg button { background: transparent; border: none; color: #8b949e; padding: 10px 16px;
+                font-size: .95rem; cursor: pointer; }
+  .seg button.active { background: #f0883e; color: #0d1117; font-weight: 700; }
+  .go { flex: 1; background: #f0883e; border: none; border-radius: 10px; color: #0d1117;
+        font-size: 1.05rem; font-weight: 700; padding: 12px; cursor: pointer; min-width: 140px; }
+  .go:disabled { opacity: .5; cursor: default; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .chip { background: #161b22; border: 1px solid #30363d; color: #8b949e; border-radius: 20px;
+          padding: 6px 12px; font-size: .85rem; cursor: pointer; }
+  .chip:hover { border-color: #f0883e; color: #e6edf3; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 18px;
+          margin-top: 8px; display: none; }
+  .card.show { display: block; }
+  .trans { font-size: 1.5rem; font-weight: 700; color: #7ee787; margin-bottom: 8px; }
+  .meta { color: #8b949e; font-size: .85rem; line-height: 1.7; }
+  .meta b { color: #e6edf3; }
+  .low { color: #f0883e; font-size: .85rem; margin-top: 8px; }
+  .err { color: #f85149; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌉 Language <span>Bridge</span></h1>
+  <div class="sub">Translates what you <b>mean</b>, not word-for-word. English → Spanish.</div>
+
+  <textarea id="in" placeholder="Type English here… e.g. tell her I miss her like crazy"></textarea>
+
+  <div class="row">
+    <div class="seg">
+      <button id="dLatam" class="active" onclick="setDialect('latam')">Latin America</button>
+      <button id="dCast" onclick="setDialect('castilian')">Castilian</button>
+    </div>
+    <button class="go" id="go" onclick="go()">Translate →</button>
+  </div>
+
+  <div class="chips">
+    <button class="chip" onclick="fill('what&apos;s up')">what's up</button>
+    <button class="chip" onclick="fill('I miss you like crazy')">I miss you like crazy</button>
+    <button class="chip" onclick="fill('my bad')">my bad</button>
+    <button class="chip" onclick="fill('good night beautiful')">good night beautiful</button>
+    <button class="chip" onclick="fill('don&apos;t worry')">don't worry</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="trans" id="t"></div>
+    <div class="meta" id="m"></div>
+    <div class="low" id="low"></div>
+  </div>
+  <div class="err" id="err"></div>
+</div>
+
+<script>
+let dialect = 'latam';
+function setDialect(d) {
+  dialect = d;
+  document.getElementById('dLatam').classList.toggle('active', d === 'latam');
+  document.getElementById('dCast').classList.toggle('active', d === 'castilian');
+}
+function fill(s) { document.getElementById('in').value = s; go(); }
+async function go() {
+  const text = document.getElementById('in').value.trim();
+  const btn = document.getElementById('go');
+  const err = document.getElementById('err');
+  err.textContent = '';
+  if (!text) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await fetch('/api/translate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, dialect })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'request failed');
+    document.getElementById('t').textContent = d.translation;
+    document.getElementById('m').innerHTML =
+      'intent: <b>' + d.intent + '</b> · tone: <b>' + d.tone + '</b> · dialect: <b>' + d.dialect + '</b><br>' +
+      'confidence: <b>' + d.confidence + '</b> · engine: <b>' + d.engine + '</b>' +
+      (d.literal_gloss && d.literal_gloss !== d.translation ? '<br>literally: "' + d.literal_gloss + '"' : '') +
+      (d.note ? '<br>note: ' + d.note : '');
+    document.getElementById('low').textContent =
+      d.confidence < 0.8 ? '⚠ low confidence — double-check before sending something important.' : '';
+    document.getElementById('card').classList.add('show');
+  } catch (e) {
+    err.textContent = 'Error: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Translate →';
+}
+document.getElementById('in').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# No hard dependencies — the offline phrase-bank engine is pure stdlib.
+# LLM upgrades (optional, via Vercel env vars ANTHROPIC_API_KEY / GEMINI_API_KEY):
+# anthropic
+# google-genai
